@@ -2,76 +2,499 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>HotpotQA 多跳问答系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotpotQA 多跳问答检索系统 | 课程大作业</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body{max-width:1000px;margin:0 auto;padding:20px}
-        .search{text-align:center;margin-bottom:30px}
-        input{width:70%;padding:10px;font-size:16px}
-        button{padding:10px 20px;background:#007bff;color:white;border:none}
-        .item{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:8px}
-        .cluster{margin:30px 0}
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 3rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-btn {
+            padding: 1rem 2rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        .search-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .search-btn:active {
+            transform: scale(0.98);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background-color: var(--primary);
+            border-radius: 2px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .result-card {
+            background: var(--card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-question {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+        }
+
+        .card-answer {
+            color: var(--text-light);
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: #eff6ff;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .view-hop-btn {
+            background-color: #e0f2fe;
+            color: var(--primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+
+        .view-hop-btn:hover {
+            background-color: #bae6fd;
+        }
+
+        .hop-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h3 {
+            color: var(--text);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--text);
+        }
+
+        .hop-context {
+            background-color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .chart-section {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            padding-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>HotpotQA 多跳问答检索与可视化</h1>
-    <div class="search">
-        <input id="kw" placeholder="输入问题/关键词检索">
-        <button onclick="search()">搜索</button>
+    <div class="container">
+        <header>
+            <h1>HotpotQA 多跳问答检索系统</h1>
+            <p>课程大作业 · 基于 MongoDB 与 Flask 的问答检索与可视化平台</p>
+        </header>
+
+        <section class="search-section">
+            <div class="search-box">
+                <input type="text" id="keywordInput" class="search-input" placeholder="输入关键词搜索问题（如 what, how, United States）">
+                <button class="search-btn" onclick="searchQuestions()">搜索</button>
+            </div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>正在检索数据...</p>
+            </div>
+        </section>
+
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <h2 class="section-title">检索结果</h2>
+            <div class="results-grid" id="resultsGrid"></div>
+        </section>
+
+        <section class="chart-section">
+            <h2 class="section-title">问题聚类可视化</h2>
+            <div class="chart-container">
+                <canvas id="clusterChart"></canvas>
+            </div>
+        </section>
+
+        <footer>
+            <p>© 2026 HotpotQA 多跳问答系统 | 课程大作业</p>
+        </footer>
     </div>
-    <div id="result"></div>
-    <div class="cluster">
-        <h3>问题聚类可视化</h3>
-        <canvas id="clusterChart"></canvas>
+
+    <!-- 多跳过程弹窗 -->
+    <div class="hop-modal" id="hopModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>多跳推理上下文</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="hop-context" id="hopContext"></div>
+        </div>
     </div>
 
     <script>
-        // 已自动填入你的虚拟机IP
-        const API = "http://192.168.199.157:5000";
+        const API_BASE = "http://192.168.199.157:5000";
 
-        async function search() {
-            const kw = document.getElementById('kw').value;
-            const res = await fetch(API + '/search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keyword: kw })
-            });
-            const data = await res.json();
-            showResult(data);
-        }
-
-        function showResult(data) {
-            let html = '';
-            for (let item of data) {
-                html += `
-                <div class="item">
-                    <h4>${item.question}</h4>
-                    <p>答案：${item.answer}</p>
-                    <button onclick="showDetail('${item._id}')">查看多跳过程</button>
-                </div>`;
+        // 搜索功能
+        async function searchQuestions() {
+            const keyword = document.getElementById('keywordInput').value.trim();
+            if (!keyword) {
+                alert("请输入关键词");
+                return;
             }
-            document.getElementById('result').innerHTML = html;
+
+            // 显示加载动画
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ keyword: keyword })
+                });
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                console.error('搜索失败:', error);
+                alert('请求失败，请检查后端服务是否正常运行');
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
         }
 
-        async function showDetail(id) {
-            const res = await fetch(API + '/get/' + id);
-            const item = await res.json();
-            alert("多跳上下文：\n" + JSON.stringify(item.context, null, 2));
+        // 显示搜索结果
+        function displayResults(results) {
+            const grid = document.getElementById('resultsGrid');
+            const section = document.getElementById('resultsSection');
+
+            if (results.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: var(--text-light);">未找到匹配结果，请尝试其他关键词</p>';
+            } else {
+                grid.innerHTML = '';
+                results.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    card.innerHTML = `
+                        <div class="card-question">${item.question}</div>
+                        <div class="card-answer"><strong>答案：</strong>${item.answer}</div>
+                        <button class="view-hop-btn" onclick="showHopProcess('${item._id}')">查看多跳推理过程</button>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+
+            section.style.display = 'block';
         }
 
-        window.onload = async function() {
-            const res = await fetch(API + '/cluster');
-            const data = await res.json();
-            const count = [0,0,0,0,0];
-            data.forEach(x => count[x.cluster]++);
-            new Chart(document.getElementById('clusterChart'), {
-                type: 'bar',
-                data: {
-                    labels: ['分类1','分类2','分类3','分类4','分类5'],
-                    datasets: [{data: count, backgroundColor: '#007bff'}]
-                }
-            });
+        // 显示多跳过程弹窗
+        async function showHopProcess(id) {
+            try {
+                const response = await fetch(`${API_BASE}/get/${id}`);
+                const data = await response.json();
+                document.getElementById('hopContext').textContent = JSON.stringify(data.context, null, 2);
+                document.getElementById('hopModal').style.display = 'flex';
+            } catch (error) {
+                console.error('获取多跳过程失败:', error);
+                alert('获取多跳过程失败');
+            }
         }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('hopModal').style.display = 'none';
+        }
+
+        // 点击弹窗外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('hopModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // 加载聚类图表
+        async function loadClusterChart() {
+            try {
+                const response = await fetch(`${API_BASE}/cluster`);
+                const data = await response.json();
+
+                const counts = [0, 0, 0, 0, 0];
+                data.forEach(item => {
+                    counts[item.cluster]++;
+                });
+
+                const ctx = document.getElementById('clusterChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['问题类别1', '问题类别2', '问题类别3', '问题类别4', '问题类别5'],
+                        datasets: [{
+                            label: '问题数量',
+                            data: counts,
+                            backgroundColor: [
+                                'rgba(37, 99, 235, 0.8)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(96, 165, 250, 0.8)',
+                                'rgba(129, 140, 248, 0.8)',
+                                'rgba(79, 70, 229, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(37, 99, 235, 1)',
+                                'rgba(59, 130, 246, 1)',
+                                'rgba(96, 165, 250, 1)',
+                                'rgba(129, 140, 248, 1)',
+                                'rgba(79, 70, 229, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            title: {
+                                display: true,
+                                text: 'HotpotQA 问题聚类分布'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '问题数量'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('加载聚类图表失败:', error);
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.onload = function() {
+            loadClusterChart();
+        }
+
+        // 支持回车搜索
+        document.getElementById('keywordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchQuestions();
+            }
+        });
     </script>
 </body>
 </html>
