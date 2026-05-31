@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>HotpotQA 多跳问答系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body{max-width:1000px;margin:0 auto;padding:20px}
+        .search{text-align:center;margin-bottom:30px}
+        input{width:70%;padding:10px;font-size:16px}
+        button{padding:10px 20px;background:#007bff;color:white;border:none}
+        .item{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:8px}
+        .cluster{margin:30px 0}
+    </style>
+</head>
+<body>
+    <h1>HotpotQA 多跳问答检索与可视化</h1>
+    <div class="search">
+        <input id="kw" placeholder="输入问题/关键词检索">
+        <button onclick="search()">搜索</button>
+    </div>
+    <div id="result"></div>
+    <div class="cluster">
+        <h3>问题聚类可视化</h3>
+        <canvas id="clusterChart"></canvas>
+    </div>
+
+    <script>
+        // 已自动填入你的虚拟机IP
+        const API = "http://192.168.199.157:5000";
+
+        async function search() {
+            const kw = document.getElementById('kw').value;
+            const res = await fetch(API + '/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword: kw })
+            });
+            const data = await res.json();
+            showResult(data);
+        }
+
+        function showResult(data) {
+            let html = '';
+            for (let item of data) {
+                html += `
+                <div class="item">
+                    <h4>${item.question}</h4>
+                    <p>答案：${item.answer}</p>
+                    <button onclick="showDetail('${item._id}')">查看多跳过程</button>
+                </div>`;
+            }
+            document.getElementById('result').innerHTML = html;
+        }
+
+        async function showDetail(id) {
+            const res = await fetch(API + '/get/' + id);
+            const item = await res.json();
+            alert("多跳上下文：\n" + JSON.stringify(item.context, null, 2));
+        }
+
+        window.onload = async function() {
+            const res = await fetch(API + '/cluster');
+            const data = await res.json();
+            const count = [0,0,0,0,0];
+            data.forEach(x => count[x.cluster]++);
+            new Chart(document.getElementById('clusterChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['分类1','分类2','分类3','分类4','分类5'],
+                    datasets: [{data: count, backgroundColor: '#007bff'}]
+                }
+            });
+        }
+    </script>
+</body>
+</html>
